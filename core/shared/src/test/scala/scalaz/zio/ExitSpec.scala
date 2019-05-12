@@ -1,12 +1,11 @@
 package scalaz.zio
 
-import org.specs2.ScalaCheck
-import org.specs2.concurrent.ExecutionEnv
-import Exit.Cause
+import org.specs2.{ScalaCheck, Specification}
+import scalaz.zio.Exit.Cause
 
-class ExitSpec(implicit ee: ExecutionEnv) extends TestRuntime with ScalaCheck {
-  import Cause._
+class ExitSpec extends Specification with ScalaCheck {
   import ArbitraryCause._
+  import Cause._
 
   def is = "ExitSpec".title ^ s2"""
     Cause
