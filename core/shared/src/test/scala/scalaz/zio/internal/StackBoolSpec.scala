@@ -1,8 +1,9 @@
 package scalaz.zio.internal
 
-import org.specs2.Specification
+import org.scalacheck.Gen
+import org.specs2.{ScalaCheck, Specification}
 
-class StackBoolSpec extends Specification {
+class StackBoolSpec extends Specification with ScalaCheck {
   def is =
     "StackBoolSpec".title ^ s2"""
         Size tracking                 $e0
@@ -11,6 +12,7 @@ class StackBoolSpec extends Specification {
         Small push/pop example        $e3
         Large push/pop example        $e4
         Peek/pop identity             $e5
+        From/to list generators       $e6
     """
 
   def e0 = {
@@ -75,4 +77,14 @@ class StackBoolSpec extends Specification {
         result and (peeked must_=== popped)
     }
   }
+
+  val boolGen = Gen.oneOf(List(true, false))
+
+  def e6 = prop { list: List[Boolean] =>
+    val stack = StackBool()
+
+    list.foreach(stack.push(_))
+
+    stack.toList.reverse must_=== list
+  }.setGen(Gen.listOfN(65, boolGen))
 }
