@@ -17,27 +17,72 @@
 package scalaz.zio.internal
 
 /**
- * A very fast, hand-optimized stack designed just for booleans.
- * In the common case (size < 256), achieves zero allocations.
- */
+  * A very fast, hand-optimized stack designed just for booleans.
+  * In the common case (size < 64), achieves zero allocations.
+  */
 private[zio] final class StackBool private () {
   import StackBool.Entry
 
   private[this] var head  = new Entry(null)
   private[this] var _size = 0L
 
+  val MAX_SIZE = 8L
+
+  val MAX = MAX_SIZE - 1L
+
   final def getOrElse(index: Int, b: Boolean): Boolean = {
     var j   = index.toLong
     var cur = head
-    while (j >= 256L && (cur.next ne null)) {
-      j -= 256L
+
+    val entry = ((_size - 1) - index) / MAX_SIZE
+    val totalEntries = _size  / MAX_SIZE
+    var entriesToMove = totalEntries - entry
+    println(s"Initial: j=$j, entriesToMove=$entriesToMove")
+
+    while (entriesToMove > 0 && (cur.next ne null)) {
       cur = cur.next
+      j = MAX_SIZE - j
+      entriesToMove = entriesToMove - 1
+      println(s"Updating: j=$j, entriesToMove=$entriesToMove")
     }
-    assert(j < 256L && j >= 0)
+
+    assert(j < MAX_SIZE && j >= 0)
     if (cur eq null) b
     else {
       val mask = 1L << j
+      println(s"Size: ${_size}")
+      println(s"Mask: ${mask.toBinaryString}")
+      println(s"Bits: ${cur.bits.toBinaryString}")
+      (cur.bits & mask) != 0L
+    }
+  }
 
+  final def getOrElse2(index: Int, b: Boolean): Boolean = {
+    var j = index.toLong
+    var cur = head
+    println(s"GetOrElse2: j = $j head: ${padWith0s(cur.bits.toBinaryString)} size: ${_size}")
+    val firstHead = _size % MAX_SIZE
+    var moreThan1 = false
+    if (j >= firstHead) {
+      cur = cur.next
+      j = j - firstHead
+      moreThan1 = true
+      println(s"Fupdat: j = $j head: ${padWith0s(cur.bits.toBinaryString)}")
+    }
+
+    while (j >= MAX_SIZE && (cur.next ne null)) {
+      j -= MAX_SIZE
+      cur = cur.next
+      println(s"Updating: j = $j head: ${padWith0s(cur.bits.toBinaryString)}")
+    }
+    assert(j < MAX_SIZE && j >= 0)
+    if (cur eq null) {
+      println(s"Not found! Returning: $b")
+      b
+    }
+    else {
+      val mask = if (moreThan1) 1L << (MAX - j) else 1L << j
+      println(s"Found     : j = $j, ${padWith0s(mask.toBinaryString)}, head: ${padWith0s(cur.bits.toBinaryString)}, result: ${(cur.bits & mask) != 0L} (${(cur.bits & mask)})")
       (cur.bits & mask) != 0L
     }
   }
@@ -45,21 +90,39 @@ private[zio] final class StackBool private () {
   final def size = _size
 
   final def push(flag: Boolean): Unit = {
-    val index = _size & 0XFFL
+    val index = _size & MAX // Long & Long
 
     if (flag) head.bits = head.bits | (1L << index)
     else head.bits = head.bits & (~(1L << index))
-
-    if (index == 255L) head = new Entry(head)
+//    println(s"Push:       ${padWith0s(head.bits.toBinaryString)}, size: ${_size + 1}")
+    if (index == MAX) head =
+      new Entry(head)
 
     _size += 1L
   }
+
+  def padWith0s(str:String):String = {
+    if (str.length < MAX_SIZE) padWith0s("0" + str) else str
+  }
+//
+//  def printBits(): Unit = {
+//    var str = padWith0s(head.bits.toBinaryString)
+//    println(s"Entry: ${head.bits}")
+//    var pointer = head.next
+//    while (pointer ne null) {
+//      println(s"Entry: ${pointer.bits}")
+//      str = s"$str${padWith0s(pointer.bits.toBinaryString)}"
+//      pointer = pointer.next
+//    }
+//    println(str)
+//    println(str.length)
+//  }
 
   final def popOrElse(b: Boolean): Boolean =
     if (_size == 0L) b
     else {
       _size -= 1L
-      val index = _size & 0XFFL
+      val index = _size & MAX
 
       if (index == 0L && head.next != null) head = head.next
 
@@ -70,7 +133,7 @@ private[zio] final class StackBool private () {
     if (_size == 0L) b
     else {
       val size  = _size - 1L
-      val index = size & 0XFFL
+      val index = size & MAX
       val entry =
         if (index == 0L && head.next != null) head.next else head
 
@@ -80,7 +143,7 @@ private[zio] final class StackBool private () {
   final def popDrop[A](a: A): A = { popOrElse(false); a }
 
   final def toList: List[Boolean] =
-    (0 until _size.toInt).map(getOrElse(_, false)).toList.reverse
+    (0 until _size.toInt).map(getOrElse2(_, false)).toList
 
   final override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"
@@ -106,3 +169,26 @@ private[zio] object StackBool {
     var bits: Long = 0L
   }
 }
+
+//object Test extends App{
+//
+//  val list = List(
+//    true,
+//    false,
+//    true,
+//    true,
+//    false,
+//    false,
+//    true,
+//    true,
+//    true,
+//  )
+//
+//  val stack = StackBool(list: _*)
+//  println(list)
+//  println(s"List size: ${list.size}")
+////  println(stack.printBits())
+//
+//  (0 until list.size).foreach(i => println(s"$i: ${stack.getOrElse(i, false)}"))
+//
+//}

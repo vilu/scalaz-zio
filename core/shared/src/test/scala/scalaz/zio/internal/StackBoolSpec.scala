@@ -39,14 +39,21 @@ class StackBoolSpec extends Specification with ScalaCheck {
     stack.push(true)
     stack.push(true)
     stack.push(false)
+//    stack.push(false)
+//    stack.push(true)
 
-    val v1 = stack.popOrElse(true)
-    val v2 = stack.popOrElse(false)
-    val v3 = stack.popOrElse(false)
+    val v1 = stack.popOrElse(false)
+    val v2 = stack.popOrElse(true)
+    val v3 = stack.popOrElse(true)
+//    val v4 = stack.popOrElse(false)
+//    val v5 = stack.popOrElse(false)
 
     (v1 must_=== false) and
       (v2 must_=== true) and
       (v3 must_=== true)
+//      (v3 must_=== true) and
+//      (v4 must_=== true) and
+//      (v5 must_=== true)
   }
 
   def e4 = {
@@ -80,11 +87,36 @@ class StackBoolSpec extends Specification with ScalaCheck {
 
   val boolGen = Gen.oneOf(List(true, false))
 
-  def e6 = prop { list: List[Boolean] =>
-    val stack = StackBool()
 
-    list.foreach(stack.push(_))
 
-    stack.toList.reverse must_=== list
-  }.setGen(Gen.listOfN(65, boolGen))
+//  def e6 = prop { list: List[Boolean] =>
+//
+//
+//    val stack = StackBool(list: _*)
+//
+//    stack.toList must_=== list
+//  }.setGen(Gen.listOfN(65, boolGen))
+
+  def e6 = {
+
+    val list = List(
+      true,
+      false,
+      true,
+      false,
+      true,
+//      false,
+//      true,
+//      true,
+//      true,
+    )
+
+    val stack = StackBool(list: _*)
+
+    println(list)
+    val s = stack.toList
+    println(s"List: ${list}, stack: $s")
+    s must_=== list
+
+  }
 }
