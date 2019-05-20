@@ -80,11 +80,33 @@ class StackBoolSpec extends Specification with ScalaCheck {
 
   val boolGen = Gen.oneOf(List(true, false))
 
-  def e6 = prop { list: List[Boolean] =>
-    val stack = StackBool()
 
-    list.foreach(stack.push(_))
 
-    stack.toList.reverse must_=== list
-  }.setGen(Gen.listOfN(65, boolGen))
+//  def e6 = prop { list: List[Boolean] =>
+//
+//
+//    val stack = StackBool(list: _*)
+//
+//    stack.toList must_=== list
+//  }.setGen(Gen.listOfN(65, boolGen))
+
+  def e6 = {
+
+    val list = List(
+      true,
+      false,
+      true,
+      true,
+//      false,
+//      false,
+//      true,
+//      true,
+//      true,
+    )
+
+    val stack = StackBool(list: _*)
+
+    stack.toList must_=== list
+
+  }
 }
