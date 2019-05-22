@@ -26,60 +26,71 @@ private[zio] final class StackBool private () {
   private[this] var head  = new Entry(null)
   private[this] var _size = 0L
 
-  val MAX_SIZE = 4L
+  val MAX_SIZE = 32L
 
   val MAX = MAX_SIZE - 1L
 
-  final def getOrElse(index: Int, b: Boolean): Boolean = {
-    var j   = index.toLong
+  final def getOrElseWorking(index: Int, b: Boolean): Boolean = {
+    var j = index.toLong
     var cur = head
-
-    val entry = ((_size - 1) - index) / MAX_SIZE
-    val totalEntries = _size  / MAX_SIZE
-    var entriesToMove = totalEntries - entry
-    println(s"Initial: j=$j, entriesToMove=$entriesToMove")
-
-    while (entriesToMove > 0 && (cur.next ne null)) {
+    println(s"GetOrElse2: j = $j head: ${padWith0s(cur.bits.toBinaryString)} size: ${_size}")
+    val firstHead = _size % MAX_SIZE
+    var moreThan1 = false
+    if (j >= firstHead && _size >= MAX_SIZE) {
+      j = j - firstHead
       cur = cur.next
-      j = MAX_SIZE - j
-      entriesToMove = entriesToMove - 1
-      println(s"Updating: j=$j, entriesToMove=$entriesToMove")
+      moreThan1 = true
+      println(s"Fupdat: j = $j head: ${padWith0s(cur.bits.toBinaryString)}")
     }
 
+    while (j >= MAX_SIZE && (cur.next ne null)) {
+      j -= MAX_SIZE
+      cur = cur.next
+      println(s"Updating: j = $j head: ${padWith0s(cur.bits.toBinaryString)}")
+    }
     assert(j < MAX_SIZE && j >= 0)
-    if (cur eq null) b
+    if (cur eq null) {
+      println(s"Not found! Returning: $b")
+      b
+    }
     else {
-      val mask = 1L << j
-      println(s"Size: ${_size}")
-      println(s"Mask: ${mask.toBinaryString}")
-      println(s"Bits: ${cur.bits.toBinaryString}")
+      val mask = if (moreThan1) 1L << (MAX - j) else 1L << ((firstHead - 1) - j)
+
+      println(s"Found     : j = $j, mask: ${padWith0s(mask.toBinaryString)}, head: ${padWith0s(cur.bits.toBinaryString)}, result: ${(cur.bits & mask) != 0L} (${(cur.bits & mask)})")
       (cur.bits & mask) != 0L
     }
   }
 
   final def getOrElse2(index: Int, b: Boolean): Boolean = {
-    var j   = index.toLong
-    var cur = head
-//    val firstHead = _size % MAX_SIZE
-//    var moreThan1 = false
-////    if (j >= firstHead) {
-////      cur = cur.next
-////      j = j - firstHead
-////      moreThan1 = true
-////    }
+    // Fetch starting point from size and block size
+//    (1 to 9) // size
+//      .toList
+//      .reverse
+//      .map(x => (x - 1) % 4) // starting point
+//      .map(y => 1 << y) // mask (without considering provided index)
 
-    while (j >= 4L && (cur.next ne null)) {
-      j -= 4L
+    val i0 = (_size - 1) % MAX_SIZE
+    var ib = (i0 + MAX) / MAX_SIZE
+    var j = index.toLong
+    var cur = head
+    println(s"getOrElseNew: starting index: $i0, blockIndex: $ib, pointer: $j, cur: ${padWith0s(cur.bits.toBinaryString)}")
+    while (ib > 0) {
+      ib -= 1
+      j -= MAX_SIZE
       cur = cur.next
+      println(s"Updating: blockIndex: $ib, pointer: $j, cur: ${padWith0s(cur.bits.toBinaryString)}")
     }
-    assert(j < 4L && j >= 0)
-    if (cur eq null) b
+
+    if (cur eq null) {
+      println(s"Not found! Returning: $b")
+      b
+    }
     else {
       val mask = 1L << j
-
       (cur.bits & mask) != 0L
     }
   }
+
 
   final def size = _size
 
@@ -88,29 +99,28 @@ private[zio] final class StackBool private () {
 
     if (flag) head.bits = head.bits | (1L << index)
     else head.bits = head.bits & (~(1L << index))
-
+//    println(s"Push:       ${padWith0s(head.bits.toBinaryString)}, size: ${_size + 1}")
     if (index == MAX) head =
       new Entry(head)
 
     _size += 1L
   }
 
-//  def padWith0s(str:String):String = {
-//    if (str.length < MAX_SIZE) padWith0s("x" + str) else str
-//  }
-//
-//  def printBits(): Unit = {
-//    var str = padWith0s(head.bits.toBinaryString)
-//    println(s"Entry: ${head.bits}")
-//    var pointer = head.next
-//    while (pointer ne null) {
-//      println(s"Entry: ${pointer.bits}")
-//      str = s"$str${padWith0s(pointer.bits.toBinaryString)}"
-//      pointer = pointer.next
-//    }
-//    println(str)
-//    println(str.length)
-//  }
+  def padWith0s(str:String):String = {
+    if (str.length < MAX_SIZE) padWith0s("0" + str) else str
+  }
+
+  def printBits(): String = {
+    var str = padWith0s(head.bits.toBinaryString)
+    println(s"Entry: ${head.bits}")
+    var pointer = head.next
+    while (pointer ne null) {
+      println(s"Entry: ${pointer.bits}")
+      str = s"$str${padWith0s(pointer.bits.toBinaryString)}"
+      pointer = pointer.next
+    }
+    str
+  }
 
   final def popOrElse(b: Boolean): Boolean =
     if (_size == 0L) b
@@ -137,7 +147,7 @@ private[zio] final class StackBool private () {
   final def popDrop[A](a: A): A = { popOrElse(false); a }
 
   final def toList: List[Boolean] =
-    (0 until _size.toInt).map(getOrElse2(_, false)).toList.reverse
+    (0 until _size.toInt).map(getOrElse2(_, false)).toList
 
   final override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"

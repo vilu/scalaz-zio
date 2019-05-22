@@ -3,6 +3,8 @@ package scalaz.zio.internal
 import org.scalacheck.Gen
 import org.specs2.{ScalaCheck, Specification}
 
+import scala.util.Random
+
 class StackBoolSpec extends Specification with ScalaCheck {
   def is =
     "StackBoolSpec".title ^ s2"""
@@ -12,7 +14,9 @@ class StackBoolSpec extends Specification with ScalaCheck {
         Small push/pop example        $e3
         Large push/pop example        $e4
         Peek/pop identity             $e5
-        From/to list generators       $e6
+        From/to list generators1       $e6
+        From/to list generators2       $e7
+        From/to list generators3       $e8
     """
 
   def e0 = {
@@ -22,9 +26,12 @@ class StackBoolSpec extends Specification with ScalaCheck {
   }
 
   def e1 = {
-    val list = (1 to 200).map(_ % 2 == 0).toList
+    val list = (1 to 20).map(_ % 2 == 0).toList
 
-    StackBool(list: _*).toList must_=== list
+    val stack = StackBool(list: _*)
+    println(s"List: ${list.map(b => if(b) "1" else "0").mkString}, stack: ${stack.printBits()}")
+
+    stack.toList must_=== list
   }
 
   def e2 = {
@@ -39,14 +46,21 @@ class StackBoolSpec extends Specification with ScalaCheck {
     stack.push(true)
     stack.push(true)
     stack.push(false)
+//    stack.push(false)
+//    stack.push(true)
 
-    val v1 = stack.popOrElse(true)
-    val v2 = stack.popOrElse(false)
-    val v3 = stack.popOrElse(false)
+    val v1 = stack.popOrElse(false)
+    val v2 = stack.popOrElse(true)
+    val v3 = stack.popOrElse(true)
+//    val v4 = stack.popOrElse(false)
+//    val v5 = stack.popOrElse(false)
 
     (v1 must_=== false) and
       (v2 must_=== true) and
       (v3 must_=== true)
+//      (v3 must_=== true) and
+//      (v4 must_=== true) and
+//      (v5 must_=== true)
   }
 
   def e4 = {
@@ -91,22 +105,54 @@ class StackBoolSpec extends Specification with ScalaCheck {
 //  }.setGen(Gen.listOfN(65, boolGen))
 
   def e6 = {
+    println("---------------6")
 
-    val list = List(
-      true,
-      false,
-      true,
-      true,
-//      false,
-//      false,
-//      true,
-//      true,
-//      true,
-    )
+    val r = new Random(43L)
+
+
+    val list =  List.fill(33)(r.nextBoolean())
 
     val stack = StackBool(list: _*)
 
-    stack.toList must_=== list
+    println(s"List: ${list.map(b => if(b) "1" else "0").mkString}, stack: ${stack.printBits()}")
+    val s = stack.toList
+    s must_=== list
+
+  }
+
+
+  def e7 = {
+    println("---------------7")
+
+//    val r = new Random(43L)
+//
+//
+//    val list =  List.fill(3)(r.nextBoolean())
+val list = List(true, false, true)
+    val stack = StackBool(list: _*)
+
+    println(list)
+    val s = stack.toList
+    println(s"List: ${list}, stack: $s")
+    s must_=== list
+
+  }
+
+
+  def e8 = {
+    println("---------------8")
+//    val r = new Random(43L)
+//
+//
+//    val list =  List.fill(4)(r.nextBoolean())
+val list = List(true, false,true,false)
+
+    val stack = StackBool(list: _*)
+
+    println(list)
+    val s = stack.toList
+    println(s"List: ${list}, stack: $s")
+    s must_=== list
 
   }
 }
