@@ -145,7 +145,12 @@ val list = List(true, false, true)
 //
 //
 //    val list =  List.fill(4)(r.nextBoolean())
-val list = List(true, false,true,false)
+    val list = List(
+      true,
+      false,
+      true,
+      false
+    )
 
     val stack = StackBool(list: _*)
 

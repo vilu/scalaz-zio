@@ -26,11 +26,28 @@ private[zio] final class StackBool private () {
   private[this] var head  = new Entry(null)
   private[this] var _size = 0L
 
-  val MAX_SIZE = 32L
+  val MAX_SIZE = 4L
 
   val MAX = MAX_SIZE - 1L
 
-  final def getOrElse2(index: Int, b: Boolean): Boolean = {
+  final def getOrElseOriginal(index: Int, b: Boolean): Boolean = {
+    var j   = index.toLong
+    var cur = head
+    while (j >= 256L && (cur.next ne null)) {
+      j -= 256L
+      cur = cur.next
+    }
+    assert(j < 256L && j >= 0)
+    if (cur eq null) b
+    else {
+      val mask = 1L << j
+
+      (cur.bits & mask) != 0L
+    }
+  }
+
+
+  final def getOrElseWorking(index: Int, b: Boolean): Boolean = {
     var j = index.toLong
     var cur = head
     println(s"GetOrElse2: j = $j head: ${padWith0s(cur.bits.toBinaryString)} size: ${_size}")
@@ -54,9 +71,34 @@ private[zio] final class StackBool private () {
       b
     }
     else {
-      val mask = if (moreThan1) 1L << (MAX - j) else 1L << ((_size - 1) - j)
+      val mask = if (moreThan1) 1L << (MAX - j) else 1L << ((firstHead - 1) - j)
 
       println(s"Found     : j = $j, mask: ${padWith0s(mask.toBinaryString)}, head: ${padWith0s(cur.bits.toBinaryString)}, result: ${(cur.bits & mask) != 0L} (${(cur.bits & mask)})")
+      (cur.bits & mask) != 0L
+    }
+  }
+
+  final def getOrElse2(index: Int, b: Boolean): Boolean = {
+    // Fetch starting point from size and block size
+    val i0 = _size % MAX_SIZE
+    var ib = index / MAX_SIZE
+    var j = index.toLong
+    var cur = head
+    println(s"getOrElseNew: size: ${_size}, blockSize: ${MAX_SIZE} starting index: $i0, blockIndex: $ib, pointer: $j, cur: ${padWith0s(cur.bits.toBinaryString)}")
+    while (ib > 0) {
+      ib -= 1
+      j -= MAX_SIZE
+      cur = cur.next
+      println(s"Updating: blockIndex: $ib, pointer: $j, cur: ${padWith0s(cur.bits.toBinaryString)}")
+    }
+
+    if (cur eq null) {
+      println(s"Not found! Returning: $b")
+      b
+    }
+    else {
+      val mask = 1L << (i0 - j)
+      println(s"Mask: ${mask.toBinaryString}")
       (cur.bits & mask) != 0L
     }
   }
